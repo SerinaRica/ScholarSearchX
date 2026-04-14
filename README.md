@@ -1,309 +1,126 @@
-# 基于混合检索与知识图谱增强的学术文献搜索系统
+# ScholarSearchX: 混合与知识图谱增强的学术搜索引擎
 
-Hybrid & KG-Enhanced Academic Search Engine
+## 1. Introduction (项目背景)
+随着学术文献数量的呈指数级增长，研究人员在海量数据中准确、快速地找到所需文献变得越来越困难。传统的基于关键字的检索系统（如简单的布尔检索或词频统计）往往无法理解查询的深层语义，也无法捕捉到作者、论文、研究概念之间错综复杂的网络关系。
+本项目旨在开发一个名为 **ScholarSearchX** 的智能学术搜索引擎。它不仅巩固了传统信息检索（IR）的核心技术，还引入了前沿的语义向量检索、知识图谱（Knowledge Graph, KG）以及检索增强生成（RAG）技术，为用户提供精准的文献检索与智能问答体验。
 
-本项目面向 IR 课程期末大作业，覆盖传统信息检索核心（倒排索引、布尔检索、向量空间模型、TF-IDF、评测指标），并提供拔高路线（伪相关反馈 Rocchio、知识图谱增强扩展、可插拔重排接口、对比评测 + Streamlit 展示）。
+## 2. Related Work (相关工作与文献研究)
+在学术检索领域，技术演进经历了以下几个重要阶段：
+1. **传统词法检索**：以 TF-IDF 和 BM25 为代表，基于词频和逆文档频率进行打分。虽然速度快、对精确匹配有效，但存在“词汇鸿沟”（Vocabulary Mismatch）问题。
+2. **语义向量检索（Dense Retrieval）**：利用预训练语言模型（如 BERT, Nomic-Embed）将文本映射到高维稠密向量空间，通过余弦相似度等计算语义相关性，解决了同义词和表达多样性的问题。
+3. **知识图谱增强（KG-Enhanced Search）**：学术实体（如作者、机构、论文、会议、概念）天然构成了一个庞大的图网络。引入图数据库可以实现基于关系的推理和推荐（如：“寻找与X学者合作过并且研究Y领域的作者的论文”）。
+4. **大模型生成与检索增强（LLM & RAG）**：结合大型语言模型的总结与推理能力，对检索到的Top-K文献进行阅读理解并生成自然语言回答，极大提升了文献调研的效率。
 
-## 1. 技术路线（可直接写进报告）
+本项目集成了上述所有演进阶段的技术，形成了一个多路召回与融合的混合学术搜索架构。
 
-系统分为四条主线，对应课程大纲的“数据与索引构建 → 检索与打分 → 查询扩展与重排 → 系统评测与展示”。
+## 3. 课程相关技术应用 (与课程内容结合)
+本项目紧密结合了《信息检索》课程的核心知识点，并将其落地为实际代码：
+* **文本预处理与倒排索引 (对应早期课程)**：实现了基于词根提取、停用词过滤的文本处理管道，并从零构建了基于内存的倒排索引（Inverted Index）。
+* **布尔检索 (Boolean Retrieval)**：支持 AND/OR/NOT 逻辑的精确学术文献过滤。
+* **向量空间模型 (Vector Space Model & TF-IDF)**：实现了基于 TF-IDF 权重的文档向量化与余弦相似度打分机制。
+* **检索评价指标 (Evaluation Metrics)**：集成了 MAP (Mean Average Precision) 和 NDCG@10 等课程强调的核心评价指标，用于量化对比不同检索策略的效果。
+* **查询扩展与伪相关反馈 (Query Expansion / Rocchio)**：探讨了如何利用初步检索结果进行查询词权重的重构与扩展。
 
-### 1.1 数据底座与索引构建（Week 3/5/7）
+## 4. 超越课堂的前沿技术 (Advanced Technologies: KG & RAG)
+为了让搜索引擎具备工业级的智能与可扩展性，本项目在课程基础之上引入了以下高级技术栈：
+* **知识图谱存储与图查询 (Neo4j)**：
+  - 构建了包含 `Paper`（论文）、`Author`（作者）、`Concept`（研究概念）节点的结构化学术图谱。
+  - 使用 Cypher 语言支持复杂的关系跳跃查询。
+* **稠密向量数据库 (Qdrant)**：
+  - 引入了专用的向量搜索引擎 Qdrant，支持海量文本嵌入向量的毫秒级近似最近邻（ANN）检索。
+* **本地大语言模型与 RAG (Ollama + Qwen2.5)**：
+  - 实现了检索增强生成（RAG）管道。用户提问不仅会召回相关文献，还会将文献内容作为上下文喂给本地部署的 LLM（Qwen2.5:0.5b），直接生成结构化的文献综述或问题解答，保护数据隐私的同时提供智能交互。
+* **容器化编排 (Docker & Docker Compose)**：
+  - 使用 Docker Compose 将图数据库（Neo4j）、向量数据库（Qdrant）和大模型服务（Ollama）一键拉起，保证了复杂环境下的可移植性与易部署性。
 
-- 数据集：抓取近三年 ArXiv 元数据（Title/Abstract/Authors/Categories），建议主题集中在 LLM Reasoning / Knowledge Graph / Neuro-Symbolic。
-- 预处理：对 Abstract 做分词、大小写归一、停用词过滤、词干化（默认 NLTK）。
-- 倒排索引：手写 `{term -> postings}`，postings 存 `[(doc_id, tf), ...]`。
-- 压缩（加分项）：对 postings 的 doc_id 做 gap，再用可变字节编码（Variable-Byte）压缩；在报告中展示压缩前后体积差异。
+## 5. 目前实现的功能与可视化展示
+目前项目已经具备完整的端到端运行能力，可直接用于中期汇报展示：
+1. **多路混合检索 Web UI (基于 Streamlit)**：
+   - 提供了直观的网页端交互界面。
+   - 支持单选/多选不同的检索算法（布尔、TF-IDF、Qdrant 向量检索、混合检索）。
+   - 提供专属的 "RAG 问答" 模块，输入学术问题即可获取大模型的综合解答。
+2. **知识图谱可视化展示 (基于 Neo4j Browser)**：
+   - 通过 `http://localhost:7474`，可以直观地探索学术图谱。
+   - 汇报时可展示的 Cypher 查询示例：
+     ```cypher
+     // 查找带有特定概念的所有论文及作者网络
+     MATCH p=(c:Concept)-[:HAS_CONCEPT]-(paper:Paper)-[:AUTHORED_BY]-(a:Author) 
+     RETURN p LIMIT 25
+     ```
 
-产物：
-- `data/corpus.jsonl`：文档库（doc_id + 元数据）
-- `data/index/index.pkl`：索引与统计信息（含可选压缩 postings）
+## 6. Future Work (未来工作计划)
+在课程的后半段及期末验收前，本项目计划在以下方面进行深化：
+1. **构建标准化的人工评测集 (Manual Evaluation Dataset)**：
+   - 目前的评价多为定性观察。下一步将制定明确的“信息需求（Information Needs）”作为查询集，并通过人工标注构建标准的 `qrels`（Query Relevance Judgments）文件。
+   - 在此标准数据集上全面运行 MAP 和 NDCG 评测，以量化证明 Hybrid + KG 相比纯 TF-IDF 的性能提升。
+2. **学术数据的指数级扩展 (Data Scaling)**：
+   - 目前系统内包含约 500 条 arXiv 样本数据。
+   - 未来计划对接 arXiv API 或 Semantic Scholar API，将数据规模扩展至**近五年所有开源的 AI/IR 领域文献**，以验证系统的工业级大数据承载与检索能力。
+3. **深度的图与向量融合 (Deep Graph-Vector Fusion)**：
+   - 探索图神经网络（GNN）生成的图嵌入向量与文本语义向量的融合，进一步提高查询意图理解的准确性。
 
-### 1.2 基础检索与打分（Week 2/4/8/9）
+---
 
-- 布尔检索：支持 `AND/OR/NOT` 与括号，返回命中文档集合。
-- 宽容检索：对 OOV 词给出基于编辑距离的纠错建议。
-- VSM + TF-IDF：基于倒排表动态计算 TF-IDF 权重，余弦相似度排序，输出 Top-K（默认 Top-100）。
-
-### 1.3 高级进阶：查询扩展与重排（Week 11 + 拔高）
-
-- 伪相关反馈（Rocchio）：取初排 Top-N 文档的高频词/高 TF-IDF 词做扩展，二次检索对比提升。
-- KG 增强扩展：维护轻量概念-同义/子概念字典（`data/kg_dict.json`），命中实体时扩展到相关概念。
-- 可插拔重排：提供重排接口占位（默认 no-op），可替换为本地小模型或 API 方案。
-
-### 1.4 严谨评测与展示（Week 10）
-
-- 测试集：人工构造查询（建议 20 个），并为语料中相关文档做 qrels 标注。
-- 指标：MAP、NDCG@10，并对比三条系统线：
-  - Base：TF-IDF
-  - +Expansion：TF-IDF + Rocchio / KG 扩展
-  - +Rerank：二阶段重排（可选）
-- 展示：Streamlit 页面左右对比结果 + 指标报表（适合答辩演示）。
-
-## 2. 代码结构
-
+## 7. Code Structure (代码结构说明)
+```text
+ScholarSearchX/
+├── data/                       # 存放原始论文数据及中间结果
+├── src/hybrid_search/          # 核心源代码目录
+│   ├── app/                    # Web 前端
+│   │   └── streamlit_app.py    # Streamlit UI 入口页面
+│   ├── index/                  # 传统 IR 模块
+│   │   └── inverted_index.py   # 倒排索引与 TF-IDF 实现
+│   ├── vector/                 # 向量检索模块
+│   │   └── qdrant_store.py     # Qdrant 向量库对接
+│   ├── kg/                     # 知识图谱模块
+│   │   └── neo4j_store.py      # Neo4j 数据库连接与构建图谱
+│   ├── rag/                    # 大语言模型模块
+│   │   └── ollama_client.py    # 对接 Ollama 提供 Embedding 与 RAG 生成
+│   └── cli.py                  # 命令行工具，用于一键构建索引/图谱/测试
+├── docker-compose.yml          # Docker 容器编排文件
+├── requirements.txt            # Python 依赖清单
+└── README.md                   # 项目文档（本文件）
 ```
-.
-├── data/
-│   ├── kg_dict.json
-│   └── eval/
-│       ├── queries.json
-│       └── qrels.tsv
-├── src/hybrid_search/
-│   ├── cli.py
-│   ├── datasets/arxiv_downloader.py
-│   ├── preprocess/text.py
-│   ├── index/inverted_index.py
-│   ├── index/compress_vbyte.py
-│   ├── search/boolean_query.py
-│   ├── search/spell.py
-│   ├── search/tfidf_ranker.py
-│   ├── search/query_expand.py
-│   ├── eval/metrics.py
-│   ├── eval/evaluate.py
-│   └── app/streamlit_app.py
-└── tests/
-```
 
-## 3. 环境与安装（macOS + Python）
+## 8. Run Instructions (运行指南)
 
-推荐 Python 3.11+。
-
+### 步骤 1: 启动基础设施 (Docker)
+确保系统已安装 Docker。在项目根目录下运行：
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -U pip
-python -m pip install -e ".[dev]"
+docker-compose up -d
 ```
-
-首次使用 NLTK 时需要下载资源：
-
+等待容器启动后，拉取用于 RAG 和向量化的本地大语言模型（由于网络原因，建议使用轻量级模型）：
 ```bash
-python -m hybrid_search.cli nltk-download
+docker-compose exec ollama ollama pull qwen2.5:0.5b
+docker-compose exec ollama ollama pull nomic-embed-text
 ```
 
-### 常见问题：zsh: command not found: hybrid-search
-
-`hybrid-search` 是通过 `pip install -e ".[dev]"` 安装到虚拟环境里的命令行入口。遇到这个错误通常是：
-
-- 没有激活虚拟环境：`source .venv/bin/activate`
-- 没有安装项目依赖：`python -m pip install -e ".[dev]"`
-
-如果你不想依赖命令行入口，也可以用模块方式运行（等价）：
-
+### 步骤 2: 安装 Python 依赖
+建议使用虚拟环境 (Conda / venv)：
 ```bash
-python -m hybrid_search.cli build-index --corpus data/corpus.jsonl --index-dir data/index --compress vbyte
+pip install -r requirements.txt
 ```
 
-## 4. 快速开始
-
-### 4.1 抓取 ArXiv 元数据
-
+### 步骤 3: 构建索引与知识图谱
+解析 `data/arxiv_papers.json` 中的学术文献，并将其灌入传统索引、向量库和图数据库中：
 ```bash
-hybrid-search download \
-  --query '("knowledge graph" OR "kg-rag" OR "neuro-symbolic" OR "reasoning") AND cat:cs.AI' \
-  --max-results 2000 \
-  --out data/corpus.jsonl
+# 构建 Qdrant 向量索引
+python -m hybrid_search.cli vector-build data/arxiv_papers.json
+
+# 构建 Neo4j 知识图谱
+python -m hybrid_search.cli neo4j-load data/arxiv_papers.json
 ```
 
-### 4.2 构建索引（含可选压缩）
-
+### 步骤 4: 启动前端可视化界面
+运行 Streamlit 服务，启动学术搜索引擎的 Web 页面：
 ```bash
-hybrid-search build-index \
-  --corpus data/corpus.jsonl \
-  --index-dir data/index \
-  --compress vbyte
+streamlit run src/hybrid_search/app/streamlit_app.py
 ```
+此时可在浏览器中打开 `http://localhost:8501` 体验搜索和 RAG 问答功能。
 
-### 4.2.1 构建轻量知识图谱（可选但推荐，KG-Enhanced 的核心）
-
-这一步会从你的语料里自动构建一个“词项共现图”（不需要手工画 KG），用于查询扩展的“邻居概念”召回。
-
-```bash
-python -m hybrid_search.cli build-kg --index-dir data/index --out data/kg/graph.pkl
-```
-
-## 4.2.2 真正集成 KG + RAG（Docker 方案）
-
-本项目提供一个可复现的“Neo4j KG + Qdrant 向量库 + Ollama 本地模型”的集成方案：
-- Neo4j：存储 Paper/Author/Category/Term 与关系（真正图数据库）
-- Qdrant：存储论文摘要向量（向量库）
-- Ollama：同时提供 embeddings 与回答生成（RAG 的 G）
-
-### 启动服务
-
-```bash
-docker compose up -d
-```
-
-可选：在 Ollama 里拉模型（首次需要）
-
-```bash
-docker compose exec ollama ollama pull nomic-embed-text
-docker compose exec ollama ollama pull llama3.2:3b
-```
-
-### 安装额外依赖
-
-```bash
-python -m pip install -e ".[dev,kg_rag]"
-```
-
-### 构建向量库（Qdrant）
-
-```bash
-python -m hybrid_search.cli vector-build --index-dir data/index
-```
-
-### 导入 Neo4j KG
-
-```bash
-python -m hybrid_search.cli neo4j-load --corpus data/corpus.jsonl
-```
-
-### Neo4j 可视化展示（中期/答辩强烈推荐）
-
-Neo4j 自带 Browser，可直接把 Cypher 查询结果以图的形式可视化，非常适合中期展示“KG 如何参与检索与扩展”。
-
-- 打开： http://localhost:7474
-- 连接：`bolt://localhost:7687`
-- 默认账号密码：`neo4j / neo4j_password`
-
-常用 Cypher（可直接复制粘贴）：
-
-验证数据是否导入：
-
-```cypher
-MATCH (p:Paper) RETURN count(p) AS papers;
-```
-
-```cypher
-MATCH (t:Term) RETURN count(t) AS terms;
-```
-
-```cypher
-MATCH ()-[r]->() RETURN type(r) AS rel, count(r) AS cnt ORDER BY cnt DESC;
-```
-
-抽样查看论文节点属性：
-
-```cypher
-MATCH (p:Paper)
-RETURN p.doc_id AS doc_id, p.title AS title, p.url AS url
-LIMIT 10;
-```
-
-展示 Paper–Term 结构（注意词项经过预处理/词干化，可能是 hallucin/knowledg 这类）：
-
-```cypher
-MATCH (t:Term {term: "hallucin"})<-[:MENTIONS]-(p:Paper)
-RETURN p, t
-LIMIT 30;
-```
-
-多跳扩展（Term → Paper → Term），用于解释 KG 扩展为什么能带来更高召回：
-
-```cypher
-MATCH (seed:Term {term:"knowledg"})<-[:MENTIONS]-(p:Paper)-[:MENTIONS]->(t:Term)
-RETURN seed, p, t
-LIMIT 80;
-```
-
-作者/类别统计（中期展示很直观）：
-
-```cypher
-MATCH (p:Paper)-[:HAS_AUTHOR]->(a:Author)
-RETURN a.name AS author, count(p) AS papers
-ORDER BY papers DESC
-LIMIT 10;
-```
-
-```cypher
-MATCH (p:Paper)-[:IN_CATEGORY]->(c:Category)
-RETURN c.name AS category, count(p) AS papers
-ORDER BY papers DESC
-LIMIT 10;
-```
-
-### 运行 RAG
-
-```bash
-python -m hybrid_search.cli rag-ask --index-dir data/index --question "What is KG-RAG and how does it mitigate hallucination?" --kg-expand --kg-neo4j
-```
-
-### 4.3 检索
-
-布尔检索：
-
-```bash
-hybrid-search search \
-  --index-dir data/index \
-  --mode boolean \
-  --query 'LLM AND (Reasoning OR Graph) NOT Vision' \
-  --topk 20
-```
-
-TF-IDF 排序检索（默认含宽容检索建议）：
-
-```bash
-hybrid-search search \
-  --index-dir data/index \
-  --mode tfidf \
-  --query 'kg rag hallucination mitigation' \
-  --topk 20
-```
-
-启用扩展（二阶段）：
-
-```bash
-hybrid-search search \
-  --index-dir data/index \
-  --mode tfidf \
-  --query 'kg rag' \
-  --expand rocchio,kg \
-  --topk 20
-```
-
-### 4.4 评测（MAP / NDCG@10）
-
-准备：
-- `data/eval/queries.json`：`[{ "qid": "...", "query": "..." }, ...]`
-- `data/eval/qrels.tsv`：`qid<TAB>doc_id<TAB>relevance(0/1/2)`
-
-标注建议（让评测“有意义”且方便写报告）：
-- 每条 query 先用检索跑出候选集合（例如 Base Top-30 + Enhanced Top-30 的并集），再从中挑选相关文档做 qrels
-- 至少给每条 query 标 5–15 篇（包含 0/1/2 三档更容易拉开 NDCG）
-
-辅助标注命令（输出可直接复制 doc_id 进 qrels）：
-
-```bash
-python -m hybrid_search.cli label --index-dir data/index --queries data/eval/queries.json --topk 30 --expand rocchio,kg
-```
-
-运行：
-
-```bash
-hybrid-search evaluate \
-  --index-dir data/index \
-  --queries data/eval/queries.json \
-  --qrels data/eval/qrels.tsv
-```
-
-### 4.5 Streamlit 展示
-
-```bash
-streamlit run src/hybrid_search/app/streamlit_app.py -- \
-  --index-dir data/index
-```
-
-## 5. 报告建议（拿高分用）
-
-- 指数构建：展示 postings 数量、词表大小、构建耗时
-- 压缩：展示压缩前后索引文件大小、解压检索耗时
-- 检索：展示布尔检索解析示例、纠错示例
-- 评测：用同一套 qrels 对比 Base vs +Expansion vs +Rerank（至少 Base vs +Expansion）
-- 可解释性：展示扩展出的词（Rocchio/ KG）与它们的贡献
-
-## 6. 许可
-
-课程项目用途。若使用第三方 API/模型，请自行遵守对应服务条款。
+### 步骤 5: 知识图谱可视化展示
+在浏览器中打开 Neo4j Browser：
+* **URL**: `http://localhost:7474`
+* **Username**: `neo4j`
+* **Password**: `neo4j_password`
+登录后即可输入 Cypher 语句可视化探索学术图谱节点。
