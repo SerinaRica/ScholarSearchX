@@ -1,0 +1,13 @@
+.DS_Store
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+data/index/
+data/corpus.jsonl
+*.pkl
+*.bin
+*.log
+*.sqlite
+.streamlit/

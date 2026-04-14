@@ -1,0 +1,5 @@
+[
+  { "qid": "q1", "query": "How to mitigate hallucination in KG-RAG?" },
+  { "qid": "q2", "query": "Integrate logic rules with transformer reasoning" }
+]
+

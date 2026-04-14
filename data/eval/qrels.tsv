@@ -1,0 +1,6 @@
+# qid<TAB>doc_id<TAB>relevance(0/1/2)
+# 示例文件：请用你的语料 doc_id 替换下面占位符
+q1	0	2
+q1	1	1
+q2	2	2
+

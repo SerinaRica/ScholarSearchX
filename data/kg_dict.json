@@ -1,0 +1,26 @@
+{
+  "kg-rag": [
+    "knowledge graph",
+    "retrieval augmented generation",
+    "hallucination mitigation",
+    "graph grounding"
+  ],
+  "neuro-symbolic": [
+    "symbolic reasoning",
+    "logic",
+    "constraint solving",
+    "hybrid ai"
+  ],
+  "f-logic": [
+    "description logic",
+    "ontology",
+    "deductive database"
+  ],
+  "llm": [
+    "large language model",
+    "language model",
+    "instruction tuning",
+    "chain of thought"
+  ]
+}
+
