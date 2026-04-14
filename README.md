@@ -1,126 +1,262 @@
-# ScholarSearchX: 混合与知识图谱增强的学术搜索引擎
+# ScholarSearchX：基于混合检索与知识图谱增强的学术文献搜索系统
 
-## 1. Introduction (项目背景)
-随着学术文献数量的呈指数级增长，研究人员在海量数据中准确、快速地找到所需文献变得越来越困难。传统的基于关键字的检索系统（如简单的布尔检索或词频统计）往往无法理解查询的深层语义，也无法捕捉到作者、论文、研究概念之间错综复杂的网络关系。
-本项目旨在开发一个名为 **ScholarSearchX** 的智能学术搜索引擎。它不仅巩固了传统信息检索（IR）的核心技术，还引入了前沿的语义向量检索、知识图谱（Knowledge Graph, KG）以及检索增强生成（RAG）技术，为用户提供精准的文献检索与智能问答体验。
+Hybrid & KG-Enhanced Academic Search Engine
 
-## 2. Related Work (相关工作与文献研究)
-在学术检索领域，技术演进经历了以下几个重要阶段：
-1. **传统词法检索**：以 TF-IDF 和 BM25 为代表，基于词频和逆文档频率进行打分。虽然速度快、对精确匹配有效，但存在“词汇鸿沟”（Vocabulary Mismatch）问题。
-2. **语义向量检索（Dense Retrieval）**：利用预训练语言模型（如 BERT, Nomic-Embed）将文本映射到高维稠密向量空间，通过余弦相似度等计算语义相关性，解决了同义词和表达多样性的问题。
-3. **知识图谱增强（KG-Enhanced Search）**：学术实体（如作者、机构、论文、会议、概念）天然构成了一个庞大的图网络。引入图数据库可以实现基于关系的推理和推荐（如：“寻找与X学者合作过并且研究Y领域的作者的论文”）。
-4. **大模型生成与检索增强（LLM & RAG）**：结合大型语言模型的总结与推理能力，对检索到的Top-K文献进行阅读理解并生成自然语言回答，极大提升了文献调研的效率。
+## Introduction（Background）
 
-本项目集成了上述所有演进阶段的技术，形成了一个多路召回与融合的混合学术搜索架构。
+学术检索系统的核心目标是：在海量文献中快速、准确地找到与用户问题相关的论文，并以可解释的方式呈现证据。传统 IR（倒排索引、TF‑IDF/BM25）擅长关键词匹配与高效召回，但对语义、概念层面的关联理解不足；而知识图谱（KG）能提供结构化关系与可解释扩展；RAG（Retrieval‑Augmented Generation）则能在检索到的证据基础上生成结构化回答与引用，提升“可用性”和“交互体验”。
 
-## 3. 课程相关技术应用 (与课程内容结合)
-本项目紧密结合了《信息检索》课程的核心知识点，并将其落地为实际代码：
-* **文本预处理与倒排索引 (对应早期课程)**：实现了基于词根提取、停用词过滤的文本处理管道，并从零构建了基于内存的倒排索引（Inverted Index）。
-* **布尔检索 (Boolean Retrieval)**：支持 AND/OR/NOT 逻辑的精确学术文献过滤。
-* **向量空间模型 (Vector Space Model & TF-IDF)**：实现了基于 TF-IDF 权重的文档向量化与余弦相似度打分机制。
-* **检索评价指标 (Evaluation Metrics)**：集成了 MAP (Mean Average Precision) 和 NDCG@10 等课程强调的核心评价指标，用于量化对比不同检索策略的效果。
-* **查询扩展与伪相关反馈 (Query Expansion / Rocchio)**：探讨了如何利用初步检索结果进行查询词权重的重构与扩展。
+本项目面向 IR 课程期末/中期展示，构建一个从零实现的混合检索系统，并在课堂内容之上集成 Neo4j（KG）+ Qdrant（向量库）+ Ollama（本地模型）实现 KG‑RAG。
 
-## 4. 超越课堂的前沿技术 (Advanced Technologies: KG & RAG)
-为了让搜索引擎具备工业级的智能与可扩展性，本项目在课程基础之上引入了以下高级技术栈：
-* **知识图谱存储与图查询 (Neo4j)**：
-  - 构建了包含 `Paper`（论文）、`Author`（作者）、`Concept`（研究概念）节点的结构化学术图谱。
-  - 使用 Cypher 语言支持复杂的关系跳跃查询。
-* **稠密向量数据库 (Qdrant)**：
-  - 引入了专用的向量搜索引擎 Qdrant，支持海量文本嵌入向量的毫秒级近似最近邻（ANN）检索。
-* **本地大语言模型与 RAG (Ollama + Qwen2.5)**：
-  - 实现了检索增强生成（RAG）管道。用户提问不仅会召回相关文献，还会将文献内容作为上下文喂给本地部署的 LLM（Qwen2.5:0.5b），直接生成结构化的文献综述或问题解答，保护数据隐私的同时提供智能交互。
-* **容器化编排 (Docker & Docker Compose)**：
-  - 使用 Docker Compose 将图数据库（Neo4j）、向量数据库（Qdrant）和大模型服务（Ollama）一键拉起，保证了复杂环境下的可移植性与易部署性。
+当前数据规模：
+- 已抓取并处理 ArXiv 元数据 500 篇（Title/Abstract/Authors/Categories/URL）
+- 已构建倒排索引（支持可变字节压缩）
+- 已构建 Qdrant 向量库（500 篇）
+- 已导入 Neo4j KG（500 篇）
 
-## 5. 目前实现的功能与可视化展示
-目前项目已经具备完整的端到端运行能力，可直接用于中期汇报展示：
-1. **多路混合检索 Web UI (基于 Streamlit)**：
-   - 提供了直观的网页端交互界面。
-   - 支持单选/多选不同的检索算法（布尔、TF-IDF、Qdrant 向量检索、混合检索）。
-   - 提供专属的 "RAG 问答" 模块，输入学术问题即可获取大模型的综合解答。
-2. **知识图谱可视化展示 (基于 Neo4j Browser)**：
-   - 通过 `http://localhost:7474`，可以直观地探索学术图谱。
-   - 汇报时可展示的 Cypher 查询示例：
-     ```cypher
-     // 查找带有特定概念的所有论文及作者网络
-     MATCH p=(c:Concept)-[:HAS_CONCEPT]-(paper:Paper)-[:AUTHORED_BY]-(a:Author) 
-     RETURN p LIMIT 25
-     ```
+## Related Work（相关研究）
 
-## 6. Future Work (未来工作计划)
-在课程的后半段及期末验收前，本项目计划在以下方面进行深化：
-1. **构建标准化的人工评测集 (Manual Evaluation Dataset)**：
-   - 目前的评价多为定性观察。下一步将制定明确的“信息需求（Information Needs）”作为查询集，并通过人工标注构建标准的 `qrels`（Query Relevance Judgments）文件。
-   - 在此标准数据集上全面运行 MAP 和 NDCG 评测，以量化证明 Hybrid + KG 相比纯 TF-IDF 的性能提升。
-2. **学术数据的指数级扩展 (Data Scaling)**：
-   - 目前系统内包含约 500 条 arXiv 样本数据。
-   - 未来计划对接 arXiv API 或 Semantic Scholar API，将数据规模扩展至**近五年所有开源的 AI/IR 领域文献**，以验证系统的工业级大数据承载与检索能力。
-3. **深度的图与向量融合 (Deep Graph-Vector Fusion)**：
-   - 探索图神经网络（GNN）生成的图嵌入向量与文本语义向量的融合，进一步提高查询意图理解的准确性。
+- 经典 IR：倒排索引、向量空间模型（VSM）、TF‑IDF、布尔检索、纠错与 tolerant retrieval。
+- 查询扩展：Rocchio 伪相关反馈（Pseudo‑Relevance Feedback）。
+- 知识图谱增强检索：利用实体/概念关系进行 query expansion 与可解释召回。
+- RAG/Graph‑RAG/KG‑RAG：使用检索证据（文本/图结构）支撑生成式回答，并显式给出引用与可追溯证据链。
 
----
+## Methods（与课程周次结合的技术路线）
 
-## 7. Code Structure (代码结构说明)
-```text
-ScholarSearchX/
-├── data/                       # 存放原始论文数据及中间结果
-├── src/hybrid_search/          # 核心源代码目录
-│   ├── app/                    # Web 前端
-│   │   └── streamlit_app.py    # Streamlit UI 入口页面
-│   ├── index/                  # 传统 IR 模块
-│   │   └── inverted_index.py   # 倒排索引与 TF-IDF 实现
-│   ├── vector/                 # 向量检索模块
-│   │   └── qdrant_store.py     # Qdrant 向量库对接
-│   ├── kg/                     # 知识图谱模块
-│   │   └── neo4j_store.py      # Neo4j 数据库连接与构建图谱
-│   ├── rag/                    # 大语言模型模块
-│   │   └── ollama_client.py    # 对接 Ollama 提供 Embedding 与 RAG 生成
-│   └── cli.py                  # 命令行工具，用于一键构建索引/图谱/测试
-├── docker-compose.yml          # Docker 容器编排文件
-├── requirements.txt            # Python 依赖清单
-└── README.md                   # 项目文档（本文件）
-```
+### 课程内核心内容（对应 Week）
 
-## 8. Run Instructions (运行指南)
+- Week 3：文本预处理（Tokenization/Stopwords/Stemming）
+- Week 5/7：倒排索引构建与压缩（gap + Variable‑Byte）
+- Week 2/4：布尔检索 + 宽容检索（编辑距离纠错）
+- Week 8/9：TF‑IDF + 余弦相似度排序（Top‑K）
+- Week 10：评测指标（MAP / NDCG@10）与对比实验
+- Week 11：伪相关反馈（Rocchio）查询扩展
 
-### 步骤 1: 启动基础设施 (Docker)
-确保系统已安装 Docker。在项目根目录下运行：
+### 超越课堂内容（KG + RAG 集成）
+
+- KG（图数据库）：Neo4j 存储 `Paper/Author/Category/Term` 与关系，并支持图查询（Term→Paper→Term 多跳扩展与可视化展示）。
+- Dense Retrieval（向量库）：Qdrant 存储论文向量，实现语义相似检索。
+- RAG：Ollama 提供 embedding 与生成能力，在“检索证据”基础上输出带引用的回答。
+- Hybrid Fusion：将 sparse（TF‑IDF）、dense（向量检索）、KG（Neo4j/扩展）结果融合，形成可解释的最终候选集合。
+
+## Current Features（当前已实现功能）
+
+### 1) 检索与对比页面（Streamlit）
+
+- Base：TF‑IDF 检索
+- Enhanced：Rocchio + KG 扩展 + TF‑IDF
+- 对比页：左右对比 Base vs Enhanced，并展示 Added terms 与 Top‑10 变化
+- RAG 问答页：一键构建向量库、一键导入 Neo4j、直接问答并展示 sources 与 debug
+
+启动：
+
 ```bash
-docker-compose up -d
+source .venv/bin/activate
+streamlit run src/hybrid_search/app/streamlit_app.py -- --index-dir data/index
 ```
-等待容器启动后，拉取用于 RAG 和向量化的本地大语言模型（由于网络原因，建议使用轻量级模型）：
+
+### 2) KG 可视化展示（Neo4j Browser，中期/答辩强烈推荐）
+
+Neo4j 自带 Browser，可把 Cypher 查询结果以图形式可视化，适合展示“KG 如何参与扩展/召回”。
+
+- 打开： http://localhost:7474
+- 连接：`bolt://localhost:7687`
+- 默认账号密码：`neo4j / neo4j_password`
+
+常用 Cypher（可直接复制粘贴）：
+
+验证数据是否导入：
+
+```cypher
+MATCH (p:Paper) RETURN count(p) AS papers;
+```
+
+```cypher
+MATCH (t:Term) RETURN count(t) AS terms;
+```
+
+```cypher
+MATCH ()-[r]->() RETURN type(r) AS rel, count(r) AS cnt ORDER BY cnt DESC;
+```
+
+抽样查看论文节点属性：
+
+```cypher
+MATCH (p:Paper)
+RETURN p.doc_id AS doc_id, p.title AS title, p.url AS url
+LIMIT 10;
+```
+
+展示 Paper–Term 结构（注意词项经过预处理/词干化，可能是 hallucin/knowledg 这类）：
+
+```cypher
+MATCH (t:Term {term: "hallucin"})<-[:MENTIONS]-(p:Paper)
+RETURN p, t
+LIMIT 30;
+```
+
+多跳扩展（Term → Paper → Term），用于解释 KG 扩展为什么能带来更高召回：
+
+```cypher
+MATCH (seed:Term {term:"knowledg"})<-[:MENTIONS]-(p:Paper)-[:MENTIONS]->(t:Term)
+RETURN seed, p, t
+LIMIT 80;
+```
+
+作者/类别统计（展示数据结构与分布）：
+
+```cypher
+MATCH (p:Paper)-[:HAS_AUTHOR]->(a:Author)
+RETURN a.name AS author, count(p) AS papers
+ORDER BY papers DESC
+LIMIT 10;
+```
+
+```cypher
+MATCH (p:Paper)-[:IN_CATEGORY]->(c:Category)
+RETURN c.name AS category, count(p) AS papers
+ORDER BY papers DESC
+LIMIT 10;
+```
+
+## Future Work（后续提升方向）
+
+- 人工评测集与评测任务：
+  - 构建 20+ 复杂科研查询（qrels 标注 0/1/2）
+  - 对比 Base vs +Expansion vs +KG‑RAG（MAP/NDCG@10）
+- 数据扩展：
+  - 当前 500 篇 ArXiv 元数据
+  - 计划扩展到近五年相关领域的开源文献（更大规模、更稳定评测）
+- 更强的混合融合策略：
+  - BM25 代替/补充 TF‑IDF
+  - RRF/学习融合权重（sparse/dense/kg）
+- 更“像论文”的 KG‑RAG：
+  - Neo4j 多跳路径检索（结构约束/路径评分）
+  - 在 UI 中可视化展示命中的子图与证据链
+- Reranking（可选）：
+  - 对候选 Top‑N 使用轻量 reranker（本地或 API），提升最终 Top‑k 的语义精度
+
+## Code Guide（每个模块做什么）
+
+数据与预处理：
+- [arxiv_downloader.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/datasets/arxiv_downloader.py)：抓取 ArXiv 元数据输出 `data/corpus.jsonl`
+- [text.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/preprocess/text.py)：文本预处理（tokenize/stopwords/stem）与 NLTK 资源下载入口
+
+索引与传统检索：
+- [inverted_index.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/index/inverted_index.py)：倒排索引构建/保存/加载，doc_norms，文档 top terms
+- [compress_vbyte.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/index/compress_vbyte.py)：可变字节编码（gap + tf）
+- [boolean_query.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/search/boolean_query.py)：布尔检索解析与执行
+- [tfidf_ranker.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/search/tfidf_ranker.py)：TF‑IDF + 余弦相似度排序
+- [spell.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/search/spell.py)：编辑距离纠错建议
+
+查询扩展与 KG：
+- [query_expand.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/search/query_expand.py)：Rocchio + KG 扩展（词典 + 轻量图谱邻居）
+- [graph.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/kg/graph.py)：从语料构建轻量“词项共现图” `data/kg/graph.pkl`
+- [neo4j_store.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/kg/neo4j_store.py)：Neo4j schema/写入/基于词项检索
+- [build_neo4j.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/kg/build_neo4j.py)：把 `data/corpus.jsonl` 导入 Neo4j（Paper/Author/Category/Term）
+
+向量库与 RAG：
+- [qdrant_store.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/vector/qdrant_store.py)：Qdrant collection/upsert/query
+- [ollama_client.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/rag/ollama_client.py)：Ollama embeddings/generate HTTP 客户端
+- [hybrid.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/rag/hybrid.py)：Hybrid 检索融合 + 生成式回答（带 sources）
+
+评测：
+- [metrics.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/eval/metrics.py)：AP/MAP/NDCG
+- [evaluate.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/eval/evaluate.py)：评测入口（含 per_query 诊断信息）
+
+系统入口：
+- [cli.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/cli.py)：所有命令行任务入口（download/build-index/build-kg/vector-build/neo4j-load/rag-ask/search/evaluate/label）
+- [streamlit_app.py](file:///Volumes/新加卷/课程/ir/project/src/hybrid_search/app/streamlit_app.py)：中期展示 UI（检索/对比/RAG 问答）
+
+## How to Run（如何启动任务）
+
+### 1) Python 环境
+
 ```bash
-docker-compose exec ollama ollama pull qwen2.5:0.5b
-docker-compose exec ollama ollama pull nomic-embed-text
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install -e ".[dev]"
+python -m hybrid_search.cli nltk-download
 ```
 
-### 步骤 2: 安装 Python 依赖
-建议使用虚拟环境 (Conda / venv)：
+如果需要 KG+RAG（Neo4j/Qdrant/Ollama）：
+
 ```bash
-pip install -r requirements.txt
+python -m pip install -e ".[dev,kg_rag]"
 ```
 
-### 步骤 3: 构建索引与知识图谱
-解析 `data/arxiv_papers.json` 中的学术文献，并将其灌入传统索引、向量库和图数据库中：
+### 2) 获取数据与构建索引（传统 IR）
+
+抓取 ArXiv：
+
 ```bash
-# 构建 Qdrant 向量索引
-python -m hybrid_search.cli vector-build data/arxiv_papers.json
-
-# 构建 Neo4j 知识图谱
-python -m hybrid_search.cli neo4j-load data/arxiv_papers.json
+hybrid-search download --query '("knowledge graph" OR "kg-rag" OR "neuro-symbolic" OR "reasoning") AND cat:cs.AI' --max-results 500 --out data/corpus.jsonl
 ```
 
-### 步骤 4: 启动前端可视化界面
-运行 Streamlit 服务，启动学术搜索引擎的 Web 页面：
+构建索引（可选压缩 vbyte）：
+
 ```bash
-streamlit run src/hybrid_search/app/streamlit_app.py
+hybrid-search build-index --corpus data/corpus.jsonl --index-dir data/index --compress vbyte
 ```
-此时可在浏览器中打开 `http://localhost:8501` 体验搜索和 RAG 问答功能。
 
-### 步骤 5: 知识图谱可视化展示
-在浏览器中打开 Neo4j Browser：
-* **URL**: `http://localhost:7474`
-* **Username**: `neo4j`
-* **Password**: `neo4j_password`
-登录后即可输入 Cypher 语句可视化探索学术图谱节点。
+可选：构建轻量共现 KG（用于扩展）
+
+```bash
+python -m hybrid_search.cli build-kg --index-dir data/index --out data/kg/graph.pkl
+```
+
+### 3) 启动 Docker（Neo4j + Qdrant + Ollama）
+
+```bash
+docker compose up -d
+```
+
+Ollama 拉模型（建议中期先用小模型，成功率更高）：
+
+```bash
+docker compose exec ollama ollama pull nomic-embed-text
+docker compose exec ollama ollama pull qwen2.5:0.5b
+```
+
+### 4) 构建向量库（Qdrant）与导入 Neo4j KG
+
+构建向量库（可用 --limit 先小规模验证）：
+
+```bash
+python -m hybrid_search.cli vector-build --index-dir data/index --collection arxiv_papers --batch 16 --limit 500
+```
+
+导入 Neo4j KG：
+
+```bash
+python -m hybrid_search.cli neo4j-load --corpus data/corpus.jsonl
+```
+
+### 5) 运行 RAG
+
+```bash
+python -m hybrid_search.cli rag-ask --index-dir data/index --question "What is KG-RAG and how does it mitigate hallucination?" --chat-model qwen2.5:0.5b --kg-expand --kg-neo4j
+```
+
+### 6) 评测（MAP / NDCG@10）
+
+准备：
+- `data/eval/queries.json`
+- `data/eval/qrels.tsv`
+
+辅助标注（输出候选 doc_id，方便做 qrels 池化标注）：
+
+```bash
+python -m hybrid_search.cli label --index-dir data/index --queries data/eval/queries.json --topk 30 --expand rocchio,kg
+```
+
+运行评测：
+
+```bash
+python -m hybrid_search.cli evaluate --index-dir data/index --queries data/eval/queries.json --qrels data/eval/qrels.tsv
+```
+
+## License
+
+MIT License
